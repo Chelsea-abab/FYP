@@ -11,137 +11,85 @@ from torchvision import transforms
 import torchvision.transforms.functional as transformsF
 
 
-def generate_filelist(file_dir):
-    file_list = []
-    
-    file_path = os.path.join(file_dir, 'image')
-    #print(file_path)
-    disp_path = os.path.join(file_dir, 'disparity')
-    disp_r_path = os.path.join(file_dir, 'disparity_r')
-    mask_path = os.path.join(file_dir, 'mask')
-    mask_r_path = os.path.join(file_dir, 'mask_r')
-    for home, dirs, files in os.walk(file_path):
-        img_num=home[-3:]
-        #print('home',home)
-        for file_ in sorted(files):
-            if file_.lower().endswith('png') and file_[:3]!="000" and file_[4]=="0":
-                file_list.append([os.path.join(home, file_), os.path.join(home, file_[:3]+"_1.png"), 
-                                    os.path.join(home, "000_0.png"), os.path.join(home, "000_1.png"),
-                                    os.path.join(disp_path, img_num+".png"),
-                                    os.path.join(disp_r_path, img_num+".png"),
-                                    os.path.join(mask_path, img_num+".png"),
-                                    os.path.join(mask_r_path, img_num+".png"),
-                                    img_num+'_'+file_[:3]])
-    #print(home.split("/"))
-    return file_list
-
-def generate_filelist_test(file_dir, val=False):
-    file_list = []
-    for home, dirs, files in os.walk(file_dir):
-        for file_ in sorted(files):
-            if file_.lower().endswith('png') and file_[:3]!="000" and file_[4]=="0":
-                if val:
-                    file_list.append([os.path.join(home, file_), os.path.join(home, file_[:3]+"_1.png"),
-                                    os.path.join(home, "000_0.png"), os.path.join(home, "000_1.png"),
-                                    home.split("/")[-1]+'_'+file_[:3]])
-                else:
-                    file_list.append([os.path.join(home, file_), os.path.join(home, file_[:3]+"_1.png"),
-                                    home.split("/")[-1]+'_'+file_[:3]])
-    return file_list
-
-
+#./FYP/datasetQ/train/train
 class TrainSetLoader(Dataset):
     def __init__(self, dataset_dir, resize=False):
         super(TrainSetLoader, self).__init__()
         self.resize = resize
-        self.file_list = generate_filelist(dataset_dir)
-    def __getitem__(self, index):
-        img_left  = Image.open(self.file_list[index][0])
-        img_right = Image.open(self.file_list[index][1])
-        gt_left  = Image.open(self.file_list[index][2])
-        gt_right = Image.open(self.file_list[index][3])
-        disp = Image.open(self.file_list[index][4])
-        disp_r = Image.open(self.file_list[index][5])
-        mask = Image.open(self.file_list[index][6])
-        mask_r = Image.open(self.file_list[index][7])
+        file_lists=[]
+        data_lists=[]
+        gt_lists=[]
+        datanames=os.listdir(os.path.join(dataset_dir,'data'))
+        gtnames=os.listdir(os.path.join(dataset_dir,'gt'))
         
+        for img in datanames:
+            data_lists.append(os.path.join(os.path.join(dataset_dir,'data'),img))
+            print("img_name: ",img)
+            
+        for img in gtnames:
+            gt_lists.append(os.path.join(os.path.join(dataset_dir,'gt'),img))
+            print("gt_name: ",img)
+        file_lists.append(data_lists)
+        file_lists.append(gt_lists)
+        self.file_list = file_lists
+    def __getitem__(self, index):
+        img=Image.open(self.file_list[0][index])
+        gt=Image.open(self.file_list[1][index])
         if self.resize:
             h = 576
             w = 288
-            img_left  = img_left.resize((h,w))
-            img_right = img_right.resize((h,w))
-            gt_left  = gt_left.resize((h,w))
-            gt_right = gt_right.resize((h,w))
-            disp = disp.resize((h,w))
-            disp_r = disp_r.resize((h,w))
-            mask = mask.resize((h,w))
-            mask_r = mask_r.resize((h,w))
- 
-        hflip = False
+            img  = img.resize((h,w))
+            gt  = gt.resize((h,w))
         if random.random()<0.5:
-            img_left = transformsF.hflip(img_left)
-            img_right = transformsF.hflip(img_right)
-            gt_left = transformsF.hflip(gt_left)
-            gt_right = transformsF.hflip(gt_right)
-            disp = transformsF.hflip(disp)
-            disp_r = transformsF.hflip(disp_r)
-            mask = transformsF.hflip(mask)
-            mask_r = transformsF.hflip(mask_r)
-            hflip = True
+            img = transformsF.hflip(img)
+            gt = transformsF.hflip(gt)
         if random.random()<0.5:
-            img_left = transformsF.vflip(img_left)
-            img_right = transformsF.vflip(img_right)
-            gt_left = transformsF.vflip(gt_left)
-            gt_right = transformsF.vflip(gt_right)
-            disp = transformsF.vflip(disp)
-            disp_r = transformsF.vflip(disp_r)
-            mask = transformsF.vflip(mask)
-            mask_r = transformsF.vflip(mask_r)
+            img = transformsF.vflip(img)
+            gt = transformsF.vflip(gt)
 
-        if hflip:
-            disp_tensor = -transforms.ToTensor()(np.array(disp)).float().div(255)
-            disp_r_tensor = -transforms.ToTensor()(np.array(disp_r)).float().div(255)
-        else:
-            disp_tensor = transforms.ToTensor()(np.array(disp)).float().div(255)
-            disp_r_tensor = transforms.ToTensor()(np.array(disp_r)).float().div(255)
+        return transforms.ToTensor()(np.array(img)), transforms.ToTensor()(np.array(gt))
         
-        return transforms.ToTensor()(np.array(img_left)), transforms.ToTensor()(np.array(img_right)), \
-                transforms.ToTensor()(np.array(gt_left)), transforms.ToTensor()(np.array(gt_right)), \
-                disp_tensor, disp_r_tensor, \
-                transforms.ToTensor()(np.array(mask)), transforms.ToTensor()(np.array(mask_r))
-        
-
     def __len__(self):
-        return len(self.file_list)
+        return len(self.file_list[0])
 
+#./FYP/datasetQ/test_a/test_a
 class TestSetLoader(Dataset):
     def __init__(self, dataset_dir, resize=False, val=False):
         super(TestSetLoader, self).__init__()
         self.resize = resize
         self.val = val
-        self.file_list = generate_filelist_test(dataset_dir, val)
+        file_lists=[]
+        data_lists=[]
+        gt_lists=[]
+        datanames=os.listdir(os.path.join(dataset_dir,'data'))
+        gtnames=os.listdir(os.path.join(dataset_dir,'gt'))
+        
+        for img in datanames:
+            data_lists.append(os.path.join(os.path.join(dataset_dir,'data'),img))
+            print("img_name: ",img)
+            
+        for img in gtnames:
+            gt_lists.append(os.path.join(os.path.join(dataset_dir,'gt'),img))
+            print("gt_name: ",img)
+        file_lists.append(data_lists)
+        file_lists.append(gt_lists)
+        self.file_list = file_lists
     def __getitem__(self, index):
-        img_left  = Image.open(self.file_list[index][0])
-        img_right = Image.open(self.file_list[index][1])
+        img  = Image.open(self.file_list[0][index])
         if self.val:
-            gt_left  = Image.open(self.file_list[index][2])
-            gt_right = Image.open(self.file_list[index][3])
+            gt  = Image.open(self.file_list[1][index])
         if self.resize:
             h = 576
             w = 288
-            img_left  = img_left.resize((h,w))
-            img_right = img_right.resize((h,w))
+            img  = img.resize((h,w))
             if self.val:
-                gt_left  = gt_left.resize((h,w))
-                gt_right = gt_right.resize((h,w))
+                gt  = gt.resize((h,w))
         if self.val:
-            return transforms.ToTensor()(np.array(img_left)), transforms.ToTensor()(np.array(img_right)), \
-            transforms.ToTensor()(np.array(gt_left)), transforms.ToTensor()(np.array(gt_right)), \
-            self.file_list[index][4]
+            return transforms.ToTensor()(np.array(img)), transforms.ToTensor()(np.array(gt))
         else:
-            return transforms.ToTensor()(np.array(img_left)), transforms.ToTensor()(np.array(img_right)), self.file_list[index][2]
+            return transforms.ToTensor()(np.array(img))
     def __len__(self):
-        return len(self.file_list)
+        return len(self.file_list[0])
 
 def toTensor(img):
     img = torch.from_numpy(img.transpose((2, 0, 1)))

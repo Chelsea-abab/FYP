@@ -19,9 +19,11 @@ def parse_args():
     parser.add_argument('--gamma', type=float, default=0.1, help='the decay of learning rate')
     parser.add_argument('--n_epochs', type=int, default=100, help='number of epochs to train')
     parser.add_argument('--n_steps', type=int, default=50, help='number of epochs to update learning rate')
-    parser.add_argument('--trainset_dir', type=str, default='./dataset/train', help='the path of the training set')
-    parser.add_argument('--valset_dir', type=str, default='./dataset/val', help='the path of the validation set')
-    parser.add_argument('--val_freq', type=int, default=10, help='the frequency to do the validation')
+    
+    parser.add_argument('--trainset_dir', type=str, default='/home/chengyuhan/FYP/datasetQ/train/train', help='the path of the training set')
+    parser.add_argument('--valset_dir', type=str, default='/home/chengyuhan/FYP/datasetQ/test_a/test_a', help='the path of the validation set')
+    
+    parser.add_argument('--val_freq', type=int, default=1, help='the frequency to do the validation')
     parser.add_argument('--load_checkpoint', type=str, default='', help='the path to load the checkpoint')
     parser.add_argument('--save_dir', type=str, default='./result', help='the path to save the training result')
     parser.add_argument('--save_name', type=str, default='1', help='the name of the current experiment')
@@ -96,11 +98,9 @@ if __name__ == '__main__':
     for epoch in range(epoch_offset, args.n_epochs):
 
         model.train()
-        for i, (im_l, im_r, gt_l, gt_r, disp, disp_r, mask, mask_r) in enumerate(train_loader):
-            b, c, h, w = im_l.shape
-            im_l, im_r, gt_l, gt_r  = Variable(im_l).cuda(), Variable(im_r).cuda(), Variable(gt_l).cuda(), Variable(gt_r).cuda()
-            disp, disp_r = Variable(disp).cuda(), Variable(disp_r).cuda()
-            mask, mask_r = Variable(mask).cuda(), Variable(mask_r).cuda()
+        for i, (img, gt) in enumerate(train_loader):
+            b, c, h, w = img.shape
+            img,gt= Variable(img).cuda(), Variable(gt).cuda()
             
             out_l, out_r, index_l, index_r = model(im_l, im_r)
             
